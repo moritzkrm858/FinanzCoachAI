@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>FinanzCoach PRO</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- html2pdf.js CDN für den PDF-Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+  <div id="pdf-container" class="app-container">
+    
+    <!-- Top Header & Navigation -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-logo">€</div>
+        <div class="brand-info">
+          <div class="brand-title">
+            <span>FinanzCoach</span>
+            <span class="badge-pro">PRO</span>
+          </div>
+          <span class="brand-subtitle">Interaktive Finanz-Analytik</span>
+        </div>
+      </div>
+
+      <nav class="main-nav">
+        <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+        <button class="nav-tab" data-tab="monat">Monat</button>
+        <button class="nav-tab" data-tab="konten">Konten</button>
+        <button class="nav-tab" data-tab="jahr">Jahr</button>
+        <button class="nav-tab" data-tab="prognose">Prognose</button>
+        <button class="nav-tab" data-tab="sparer">Sparer</button>
+        <button class="nav-tab" data-tab="berater">Berater</button>
+      </nav>
+    </header>
+
+    <!-- Exklusive Dashboard Kopfzeile -->
+    <section id="dashboardTopHeader" class="dashboard-header-cards">
+      <div class="top-card">
+        <div class="card-head">
+          <span class="card-title-sm">AKTUELLES DATUM</span>
+          <div class="icon-circle">📅</div>
+        </div>
+        <span id="topDayName" class="day-name">SAMSTAG</span>
+        <span id="topDateStr" class="date-large">31. Oktober 2026</span>
+        <span id="topClockStr" class="time-sub">12:39:31 Uhr</span>
+        <div class="card-foot">
+          <span class="foot-label">Kalenderwoche</span>
+          <span id="topKwBadge" class="badge-dark">KW 44</span>
+        </div>
+      </div>
+
+      <div class="top-card highlight">
+        <div class="card-head">
+          <span class="card-title-sm">RESTBETRAG ÜBRIG <span class="sub-faded">(Einkommen - Ausgaben)</span></span>
+        </div>
+        <div class="amount-row">
+          <span id="topRemainingValue" class="amount-green">0,00 €</span>
+          <span class="tag-faded">verfügbar</span>
+          <div class="pill-group">
+            <span id="topIncomeBadge" class="pill-green">+ 0,00 €</span>
+            <span id="topExpenseBadge" class="pill-red">- 0,00 €</span>
+          </div>
+        </div>
+        <div class="progress-info-row">
+          <span id="topBudgetPctText">Budget verbraucht (0%)</span>
+          <span id="topDailyBudgetVal">Tagesbudget: 0,00 €/Tag</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="topBudgetProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div class="top-card">
+        <div class="card-head">
+          <span class="card-title-sm">TAGE BIS MONATSENDE</span>
+          <div class="icon-circle">⏳</div>
+        </div>
+        <div class="days-row">
+          <span id="topDaysRemainingVal" class="days-large">0</span>
+          <span class="days-label">Tage verbleibend</span>
+        </div>
+        <div class="progress-info-row foot-spaced">
+          <span>Monatsfortschritt</span>
+          <span id="topMonthPctText" class="bold">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="topMonthProgressBar" class="progress-bar-fill purple" style="width: 0%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN VIEWS -->
+    <main class="content-area">
+
+      <!-- 1. DASHBOARD VIEW -->
+      <div id="view-dashboard" class="tab-view active">
+        <div class="grid-2col">
+          <section class="card chart-card">
+            <div class="card-header-flex">
+              <div>
+                <h2>Cashflow-Entwicklung (Trend)</h2>
+                <p class="card-subtitle">Einnahmen vs. Ausgaben</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="dashCashflowChart"></canvas>
+            </div>
+          </section>
+
+          <section class="card chart-card">
+            <div class="card-header-flex">
+              <div>
+                <h2>Ausgaben nach Kategorie</h2>
+                <p class="card-subtitle">Monatliche Verteilung</p>
+              </div>
+            </div>
+            <div class="chart-wrapper chart-doughnut-center">
+              <canvas id="dashCategoryChart"></canvas>
+            </div>
+          </section>
+        </div>
+
+        <section class="card chart-card full-width mt-16">
+          <h2>Liquiditätsverlauf</h2>
+          <div class="chart-wrapper">
+            <canvas id="dashLiquidityChart"></canvas>
+          </div>
+        </section>
+
+        <!-- Kompakte Buttons am Dashboard-Ende -->
+        <div class="dashboard-bottom-actions">
+          <button id="exportPdfBtn" class="btn-compact btn-pdf-compact">PDF Bericht exportieren</button>
+          <button id="resetDataBtn" class="btn-compact btn-danger-compact">Alle Daten zurücksetzen</button>
+        </div>
+      </div>
+
+      <!-- 2. MONAT VIEW -->
+      <div id="view-monat" class="tab-view">
+        <div class="view-header">
+          <div class="month-select-wrapper">
+            <h2>Monatsübersicht & Buchungen</h2>
+            <div class="month-year-picker">
+              <select id="monatSelectMonth">
+                <option value="0">Januar</option>
+                <option value="1">Februar</option>
+                <option value="2">März</option>
+                <option value="3">April</option>
+                <option value="4">Mai</option>
+                <option value="5">Juni</option>
+                <option value="6">Juli</option>
+                <option value="7">August</option>
+                <option value="8">September</option>
+                <option value="9">Oktober</option>
+                <option value="10">November</option>
+                <option value="11">Dezember</option>
+              </select>
+              <select id="monatSelectYear"></select>
+            </div>
+          </div>
+          <button id="openAddTxModalBtn" class="btn-primary">+ Neue Buchung</button>
+        </div>
+
+        <section class="card data-card">
+          <div class="table-controls">
+            <input type="text" id="txSearchInput" placeholder="Suche nach Notiz oder Kategorie...">
+            <select id="txCategoryFilter">
+              <option value="ALL">Alle Kategorien</option>
+              <option value="Miete & Wohnen">Miete & Wohnen</option>
+              <option value="Lebensmittel">Lebensmittel</option>
+              <option value="Freizeit">Freizeit</option>
+              <option value="Mobilität">Mobilität</option>
+              <option value="Sparen & Depot">Sparen & Depot</option>
+              <option value="Gehalt">Gehalt</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Typ</th>
+                  <th>Kategorie</th>
+                  <th>Notiz</th>
+                  <th>Betrag</th>
+                  <th>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id="transactionTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- 3. KONTEN VIEW (Neuer Reiter) -->
+      <div id="view-konten" class="tab-view">
+        <div class="view-header">
+          <h2>Kontoübersicht & Gesamtvermögen</h2>
+          <button id="openAddAccountModalBtn" class="btn-primary">+ Konto hinzufügen</button>
+        </div>
+
+        <section class="card kpi-card-summary">
+          <span class="kpi-label">Gesamtvermögen aller Konten</span>
+          <span id="totalNetWorth" class="kpi-value positive">0,00 €</span>
+        </section>
+
+        <section class="card data-card mt-16">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Kontoname</th>
+                  <th>Bank / Institut</th>
+                  <th>Typ</th>
+                  <th>Kontostand</th>
+                  <th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody id="accountsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- 4. JAHR VIEW -->
+      <div id="view-jahr" class="tab-view">
+        <div class="view-header">
+          <h2>Jahresanalyse & Übersicht</h2>
+        </div>
+        <section class="card data-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Monat</th>
+                  <th>Einnahmen</th>
+                  <th>Ausgaben</th>
+                  <th>Sparbetrag</th>
+                  <th>Sparquote</th>
+                </tr>
+              </thead>
+              <tbody id="jahrTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- 5. PROGNOSE VIEW -->
+      <div id="view-prognose" class="tab-view">
+        <div class="view-header">
+          <h2>Vermögensprognose & Zinseszins</h2>
+        </div>
+        <div class="grid-2col">
+          <section class="card form-card">
+            <h2>Prognose-Rechner</h2>
+            <div class="slider-group">
+              <label>Startkapital: <strong id="valInitDeposit">0 €</strong></label>
+              <input type="range" id="sliderInitDeposit" min="0" max="50000" step="500" value="0">
+            </div>
+            <div class="slider-group">
+              <label>Monatliche Sparrate: <strong id="valMonthlyContrib">0 €</strong></label>
+              <input type="range" id="sliderMonthlyContrib" min="0" max="3000" step="50" value="0">
+            </div>
+            <div class="slider-group">
+              <label>Rendite (p.a.): <strong id="valReturnRate">7.0 %</strong></label>
+              <input type="range" id="sliderReturnRate" min="1" max="15" step="0.5" value="7.0">
+            </div>
+            <div class="slider-group">
+              <label>Anlagehorizont: <strong id="valYears">15 Jahre</strong></label>
+              <input type="range" id="sliderYears" min="1" max="40" step="1" value="15">
+            </div>
+          </section>
+
+          <section class="card chart-card">
+            <h2>Zinseszins-Entwicklung</h2>
+            <div class="chart-wrapper">
+              <canvas id="prognoseForecastChart"></canvas>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 6. SPARER VIEW -->
+      <div id="view-sparer" class="tab-view">
+        <div class="view-header">
+          <h2>Deine Sparziele</h2>
+          <button id="openAddGoalModalBtn" class="btn-primary">+ Neues Sparziel</button>
+        </div>
+        <div id="savingsGoalsGrid" class="grid-3col"></div>
+      </div>
+
+      <!-- 7. BERATER VIEW -->
+      <div id="view-berater" class="tab-view">
+        <div class="view-header">
+          <h2>KI-Finanzcoach Audit</h2>
+        </div>
+        <section class="card chat-card">
+          <h2>Interaktiver Coach</h2>
+          <div id="chatHistory" class="chat-history">
+            <div class="chat-msg bot">
+              Hallo! Trage deine Transaktionen ein, damit ich deine Finanzen analysieren kann[cite: 1].
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </main>
+
+    <!-- MODALS -->
+    <div id="txModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Neue Buchung erfassen</h3>
+        <form id="txForm">
+          <div class="form-group">
+            <label>Typ</label>
+            <select id="modalTxType" required>
+              <option value="expense">Ausgabe</option>
+              <option value="income">Einnahme</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Betrag (€)</label>
+            <input type="number" id="modalTxAmount" step="0.01" required placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Kategorie</label>
+            <select id="modalTxCategory" required>
+              <option value="Miete & Wohnen">Miete & Wohnen</option>
+              <option value="Lebensmittel">Lebensmittel</option>
+              <option value="Freizeit">Freizeit</option>
+              <option value="Mobilität">Mobilität</option>
+              <option value="Sparen & Depot">Sparen & Depot</option>
+              <option value="Gehalt">Gehalt</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Datum</label>
+            <input type="date" id="modalTxDate" required>
+          </div>
+          <div class="form-group">
+            <label>Notiz</label>
+            <input type="text" id="modalTxNote" placeholder="z. B. Wocheneinkauf">
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="closeTxModalBtn" class="btn-secondary">Abbrechen</button>
+            <button type="submit" class="btn-primary">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Konto hinzufügen -->
+    <div id="accountModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Neues Konto hinzufügen</h3>
+        <form id="accountForm">
+          <div class="form-group">
+            <label>Kontoname</label>
+            <input type="text" id="modalAccName" required placeholder="z. B. Girokonto, Tagesgeld">
+          </div>
+          <div class="form-group">
+            <label>Bank / Institut</label>
+            <input type="text" id="modalAccBank" required placeholder="z. B. Sparkasse, DKB">
+          </div>
+          <div class="form-group">
+            <label>Konto-Typ</label>
+            <select id="modalAccType">
+              <option value="Girokonto">Girokonto</option>
+              <option value="Tagesgeld">Tagesgeld</option>
+              <option value="Depot">Depot</option>
+              <option value="Kreditkarte">Kreditkarte</option>
+              <option value="Bargeld">Bargeld</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Kontostand (€)</label>
+            <input type="number" id="modalAccBalance" step="0.01" required placeholder="0.00">
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="closeAccountModalBtn" class="btn-secondary">Abbrechen</button>
+            <button type="submit" class="btn-primary">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- PDF Loading Overlay -->
+    <div id="pdfLoadingOverlay" class="loading-overlay">
+      <div class="spinner"></div>
+      <p>PDF-Bericht wird generiert...</p>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
